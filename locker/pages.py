@@ -1,3 +1,4 @@
+import json
 from mimetypes import guess_type
 from urllib.parse import urlencode
 from django.contrib import messages
@@ -33,6 +34,28 @@ def files(request):
                                           'dav': request.build_absolute_uri('/dav/')})
 
 
+def delete_selection(user, folder, selection):
+    try:
+        names = json.loads(selection)
+    except ValueError as exc:
+        raise DiskError('Не удалось прочитать список выбранных объектов.') from exc
+    if not isinstance(names, list) or not names or not all(isinstance(n, str) for n in names):
+        raise DiskError('Выберите файлы или папки.')
+    targets = []
+    for name in dict.fromkeys(names):
+        path = locate(user, (folder / filename(name)).relative_to(user.folder).as_posix())
+        if not path.exists():
+            raise DiskError(f'Объект «{name}» уже отсутствует. Обновите список.')
+        allow_web_change(user, path, membership=True)
+        targets.append(path)
+    for done, path in enumerate(targets):
+        try:
+            remove(path)
+        except OSError as exc:
+            raise DiskError(f'Полностью удалено: {done} из {len(targets)}. '
+                            f'Не удалось завершить удаление «{path.name}».') from exc
+
+
 @login_required
 @require_POST
 def change(request):
@@ -44,7 +67,9 @@ def change(request):
             if not folder.is_dir():
                 raise DiskError('Папка недоступна.')
             action = request.POST.get('action')
-            if action == 'upload':
+            if action == 'delete_selected':
+                delete_selection(user, folder, request.POST.get('selection', ''))
+            elif action == 'upload':
                 uploads = request.FILES.getlist('file')
                 if not uploads:
                     raise DiskError('Выберите файл.')

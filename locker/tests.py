@@ -129,3 +129,18 @@ class DriveTests(TestCase):
         self.assertContains(self.client.get('/view/', {'p':'page.html'}), 'просмотр в браузере недоступен')
         self.client.force_login(Student.objects.get(username='bob'))
         self.assertEqual(self.client.get('/view/', {'p':'рисунок.PNG'}).status_code, 404)
+
+    def test_bulk_delete_preflights_selection(self):
+        import json
+        self.request('MKCOL', '/dav/group')
+        self.request('PUT', '/dav/group/note', b'n')
+        self.request('PUT', '/dav/keep', b'k')
+        self.request('PUT', '/dav/remove', b'r')
+        def submit(names):
+            self.client.post('/change/', {'action':'delete_selected','selection':json.dumps(names)})
+        submit(['remove', '../keep'])
+        self.assertEqual(self.request('GET','/dav/remove')[0], 200)
+        submit(['group', 'remove', 'remove'])
+        self.assertEqual(self.request('GET','/dav/remove')[0], 404)
+        self.assertEqual(self.request('GET','/dav/group/note')[0], 404)
+        self.assertEqual(self.request('GET','/dav/keep')[0], 200)

@@ -4,3 +4,35 @@
 
 .download-button {display:inline-block; padding:.25rem .65rem; margin-bottom:.3rem; border:1px solid var(--blue); border-radius:4px; text-decoration:none;}
 .download-button:hover {background:var(--blue); color:white;}
+
+.file-panel {background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.selection-bar,.file-entry,.entry-actions,.selection-bar label,.entry-title,dialog footer {display:flex;align-items:center}
+.selection-bar {padding:.7rem 1rem;gap:.8rem;flex-wrap:wrap;background:#eef1ed}
+.selection-bar label {gap:.75rem;font-weight:600;cursor:pointer}
+.file-panel input[type=checkbox] {width:1.12rem;height:1.12rem;margin:0;flex:none;accent-color:var(--blue);cursor:pointer}
+#counter {font-size:.85rem;color:#405566}
+.delete-action {margin-left:auto;background:white;color:#98352d;border-color:#d5b6ae;padding:.38rem .7rem}
+.delete-action:disabled {color:#70777b;border-color:#ccd2cd;background:transparent;cursor:default}
+.file-list {list-style:none;margin:0;padding:0}
+.file-entry {gap:.75rem;min-height:4.2rem;padding:.65rem 1rem;border-top:1px solid #e5e7e1}
+.file-entry:has(input:checked) {background:#edf5fb}
+.entry-title {gap:.7rem;flex:1;min-width:0}
+.entry-title div {min-width:0}
+.entry-title a {font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.entry-title a:hover,.rename-action:hover {text-decoration:underline}
+.entry-icon {background:#f4edda;color:#78581d;border-radius:.4rem;padding:.3rem .55rem}
+.entry-title small {font-size:.8rem}
+.entry-actions {margin-left:auto;justify-content:flex-end;gap:.6rem}
+.rename-action,.entry-actions .download-button {font-size:.88rem;padding:.32rem .6rem}
+.rename-action {background:transparent;color:var(--blue);border:0;font-weight:500}
+.entry-actions .download-button {margin:0;background:#f5f8fa;border-color:#bccbd5}
+dialog {width:min(420px,92vw);border:1px solid var(--line);border-radius:12px;padding:1.6rem;color:inherit}
+dialog::backdrop {background:#14263866}
+dialog footer {gap:.6rem;justify-content:flex-end;margin-top:1.4rem}
+#delete-names {max-height:10rem;overflow:auto;overflow-wrap:anywhere}
+.confirm-delete {background:#94362e;border-color:#94362e}
+@media(max-width:1000px) and (min-width:761px), (max-width:560px) {
+  .file-entry {display:grid;grid-template-columns:auto minmax(0,1fr);gap:.45rem .75rem}
+  .entry-actions {grid-column:2;justify-self:end}
+}
+.entry-actions .download-button:hover {background:var(--blue);color:#fff}
