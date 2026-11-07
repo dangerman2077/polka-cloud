@@ -23,6 +23,9 @@
           <small>{% if folder %}Папка{% else %}{{ size|filesizeformat }}{% endif %}</small></div>
         </div>
         <div class="entry-actions"><button type="button" class="rename-action" data-name="{{ name }}">Переименовать</button>
+        {% if not folder and name|lower|slice:"-4:" == ".zip" %}
+        <form action="/change/" method="post">{% csrf_token %}<input type="hidden" name="action" value="extract"><input type="hidden" name="p" value="{{ path }}"><input type="hidden" name="name" value="{{ name }}"><button class="quiet" type="submit">Распаковать</button></form>
+        {% endif %}
         {% if not folder %}<a class="download-button" href="/download/?p={{ rel|urlencode }}" download aria-label="Скачать {{ name }}">Скачать</a>{% endif %}</div>
       </li>
       {% empty %}<li class="empty">В этой папке пока нет файлов.</li>{% endfor %}

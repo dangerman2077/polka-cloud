@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
+from .archives import extract_archive
 from .dav import allow_web_change
 from .disk import DiskError, Pending, exclusive, filename, locate, remove, tally
 
@@ -87,6 +88,9 @@ def change(request):
             else:
                 name = filename(request.POST.get('name',''))
                 target = locate(user, (folder/name).relative_to(user.folder).as_posix())
+                if action == 'extract':
+                    result = extract_archive(user, target)
+                    return redirect('/?' + urlencode({'p': result.relative_to(user.folder).as_posix()}))
                 allow_web_change(user, target, membership=True)
                 if action == 'mkdir':
                     target.mkdir()
