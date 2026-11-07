@@ -11,8 +11,38 @@ from .dav import allow_web_change
 from .disk import DiskError, Full, budget, filename
 
 
-def extract_archive(user, archive):
+LEGACY_ENCODINGS = {'auto', 'cp866', 'cp1251', 'cp437'}
+
+
+def archive_name(entry, encoding):
+    original = entry.orig_filename
+    if '\x00' in original:
+        raise DiskError('В имени файла обнаружен нулевой байт.')
+    # Python 3.12 applies a valid Info-ZIP Unicode Path field to filename.
+    if entry.flag_bits & 0x800 or entry.filename != original:
+        return entry.filename
+    # Without a Unicode marker zipfile maps every original byte through CP437.
+    raw = original.encode('cp437')
+    if encoding != 'auto':
+        return raw.decode(encoding)
+    try:
+        return raw.decode('utf-8')
+    except UnicodeDecodeError:
+        pass
+    dos = raw.decode('cp866')
+    try:
+        windows = raw.decode('cp1251')
+    except UnicodeDecodeError:
+        return dos
+    def russian_letters(name):
+        return sum('А' <= ch <= 'я' or ch in 'Ёё' for ch in name)
+    return max((dos, windows), key=russian_letters)
+
+
+def extract_archive(user, archive, encoding='auto'):
     """Caller holds the account write lock. Publish only after every entry succeeds."""
+    if encoding not in LEGACY_ENCODINGS:
+        raise DiskError('Неизвестная кодировка имён файлов.')
     if not archive.is_file() or archive.suffix.casefold() != '.zip':
         raise DiskError('Выберите ZIP-архив.')
     destination = archive.with_name(filename(archive.stem))
@@ -37,7 +67,9 @@ def extract_archive(user, archive):
                 kind = stat.S_IFMT(entry.external_attr >> 16)
                 if kind not in (0, stat.S_IFREG, stat.S_IFDIR):
                     raise DiskError('Архив содержит ссылку или специальный файл.')
-                raw = entry.orig_filename.removesuffix('/') if entry.is_dir() else entry.orig_filename
+                raw = archive_name(entry, encoding)
+                if entry.is_dir():
+                    raw = raw.removesuffix('/')
                 parts = raw.split('/')
                 if len(parts) > 64:
                     raise DiskError('Слишком много уровней вложенности.')
@@ -53,6 +85,8 @@ def extract_archive(user, archive):
                             raise Full('Исчерпана квота хранилища.')
                         output.write(chunk)
             root.rename(destination)
+    except UnicodeError as exc:
+        raise DiskError('Не удалось прочитать имя файла. Выберите другую кодировку имён ZIP.') from exc
     except (BadZipFile, NotImplementedError, EOFError, zlib.error, lzma.LZMAError) as exc:
         raise DiskError('ZIP повреждён или использует неподдерживаемое сжатие.') from exc
     return destination

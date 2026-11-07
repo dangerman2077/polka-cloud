@@ -89,7 +89,7 @@ def change(request):
                 name = filename(request.POST.get('name',''))
                 target = locate(user, (folder/name).relative_to(user.folder).as_posix())
                 if action == 'extract':
-                    result = extract_archive(user, target)
+                    result = extract_archive(user, target, request.POST.get('encoding', 'auto'))
                     return redirect('/?' + urlencode({'p': result.relative_to(user.folder).as_posix()}))
                 allow_web_change(user, target, membership=True)
                 if action == 'mkdir':

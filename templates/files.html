@@ -24,7 +24,11 @@
         </div>
         <div class="entry-actions"><button type="button" class="rename-action" data-name="{{ name }}">Переименовать</button>
         {% if not folder and name|lower|slice:"-4:" == ".zip" %}
-        <form action="/change/" method="post">{% csrf_token %}<input type="hidden" name="action" value="extract"><input type="hidden" name="p" value="{{ path }}"><input type="hidden" name="name" value="{{ name }}"><button class="quiet" type="submit">Распаковать</button></form>
+        <form action="/change/" method="post">{% csrf_token %}<input type="hidden" name="action" value="extract"><input type="hidden" name="p" value="{{ path }}"><input type="hidden" name="name" value="{{ name }}"><button class="quiet" type="submit">Распаковать</button>
+          <details><summary>Кодировка имён</summary><label><select name="encoding" aria-label="Кодировка имён ZIP">
+            <option value="auto">Автоматически</option><option value="cp866">DOS — CP866</option>
+            <option value="cp1251">Windows-1251</option><option value="cp437">Западная — CP437</option>
+          </select></label></details></form>
         {% endif %}
         {% if not folder %}<a class="download-button" href="/download/?p={{ rel|urlencode }}" download aria-label="Скачать {{ name }}">Скачать</a>{% endif %}</div>
       </li>

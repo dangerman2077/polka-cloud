@@ -34,3 +34,48 @@ class ArchiveTests(TestCase):
             self.extract(entries)
             self.assertFalse((self.root/'Учёба').exists())
             self.assertFalse((self.root/'bad').exists())
+
+    def unpack_legacy(self, name, codec, choice='auto', extra=b''):
+        from zipfile import ZipInfo
+        raw = name.encode(codec)
+        marker = 'X' * len(raw)
+        path = self.root/'Учёба.ZIP'
+        with ZipFile(path, 'w') as archive:
+            member = ZipInfo(marker)
+            member.extra = extra
+            archive.writestr(member, b'content')
+        data = path.read_bytes()
+        self.assertEqual(data.count(marker.encode()), 2)
+        path.write_bytes(data.replace(marker.encode(), raw))
+        return self.client.post('/change/', {'action':'extract', 'name':path.name,
+                                             'encoding':choice}, follow=True)
+
+    def test_dos_names(self):
+        name = 'Учёба/Лекции/Отчёт.txt'
+        self.unpack_legacy(name, 'cp866')
+        self.assertEqual((self.root/'Учёба'/name).read_bytes(), b'content')
+
+    def test_windows_names(self):
+        name = 'Лекции/Отчёт.txt'
+        self.unpack_legacy(name, 'cp1251')
+        self.assertTrue((self.root/'Учёба'/name).is_file())
+
+    def test_ambiguous_name_with_manual_encoding(self):
+        name = 'мама.txt'
+        self.unpack_legacy(name, 'cp1251', 'cp1251')
+        self.assertTrue((self.root/'Учёба'/name).is_file())
+
+    def test_unflagged_utf8(self):
+        name = 'Текст/файл.txt'
+        self.unpack_legacy(name, 'utf-8')
+        self.assertTrue((self.root/'Учёба'/name).is_file())
+
+    def test_unicode_extra_field(self):
+        import struct
+        import zlib
+        alias = 'TEXT.TXT'
+        name = 'Учебник.txt'
+        payload = struct.pack('<BI', 1, zlib.crc32(alias.encode())) + name.encode()
+        extra = struct.pack('<HH', 0x7075, len(payload)) + payload
+        self.unpack_legacy(alias, 'ascii', extra=extra)
+        self.assertTrue((self.root/'Учёба'/name).is_file())
