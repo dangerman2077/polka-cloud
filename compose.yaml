@@ -1,0 +1,35 @@
+name: polka-cloud
+services:
+  app:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - students:/srv/data
+      - static:/app/public
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1',8000),3).close()"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+  https:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      POLKA_DOMAIN: ${POLKA_DOMAIN:?set domain in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - static:/srv/static:ro
+      - certificates:/data
+      - caddy_config:/config
+volumes:
+  students:
+  static:
+  certificates:
+  caddy_config:

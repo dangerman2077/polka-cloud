@@ -1,0 +1,15 @@
+{$POLKA_DOMAIN} {
+    handle_path /static/* {
+        root * /srv/static
+        file_server
+    }
+    @dav path /dav /dav/*
+    handle @dav {
+        header Content-Security-Policy "sandbox"
+        header X-Content-Type-Options nosniff
+        reverse_proxy app:8000
+    }
+    handle {
+        reverse_proxy app:8000
+    }
+}

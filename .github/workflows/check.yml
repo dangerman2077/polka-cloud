@@ -1,0 +1,27 @@
+name: Polka checks
+on: [push, pull_request]
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate installer
+        run: bash -n install.sh && sh -n deploy/start.sh
+      - name: Configure local TLS instance
+        run: |
+          printf 'POLKA_DOMAIN=localhost\nPOLKA_SECRET=%s\n' "$(openssl rand -hex 48)" >.env
+          docker compose config --quiet
+          docker compose up --build --wait
+      - name: Test Django and WebDAV
+        run: |
+          docker compose exec -T app python manage.py makemigrations --check --dry-run
+          docker compose exec -T -e POLKA_DEV=1 app python manage.py test
+      - name: Check TLS routing and admin assets
+        run: |
+          curl --retry 8 --retry-all-errors -kfsS https://localhost/login/ -o /dev/null
+          docker compose cp https:/data/caddy/pki/authorities/local/root.crt /tmp/polka-root.crt
+          curl --retry 5 --retry-all-errors -fsS --cacert /tmp/polka-root.crt https://localhost/login/ -o /dev/null
+          curl -fsS --cacert /tmp/polka-root.crt https://localhost/static/admin/css/base.css -o /dev/null
+          test "$(curl -sS --cacert /tmp/polka-root.crt -o /dev/null -w '%{http_code}' -X PROPFIND https://localhost/dav)" = 401
+      - if: failure()
+        run: docker compose logs --tail 100

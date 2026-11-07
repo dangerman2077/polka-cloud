@@ -1,14 +1,10 @@
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
-from django.urls import include, path
-
-admin.site.site_header = 'Polka · Администрирование'
-admin.site.site_title = 'Polka'
-admin.site.index_title = 'Управление пользователями и хранилищем'
+from django.contrib.auth.views import LoginView, LogoutView
+from django.urls import path
+from locker import pages
 
 urlpatterns = [
+    path('', pages.files), path('change/', pages.change), path('download/', pages.download),
+    path('stats/', pages.stats), path('login/', LoginView.as_view()), path('logout/', LogoutView.as_view()),
     path('admin/', admin.site.urls),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('', include('drive.urls')),
 ]

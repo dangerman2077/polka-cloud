@@ -1,0 +1,8 @@
+.env
+.venv/
+var/
+public/
+__pycache__/
+*.py[cod]
+.git
+.polka-install

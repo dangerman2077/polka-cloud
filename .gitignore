@@ -1,15 +1,6 @@
 .env
-.env.*
-!.env.example
 .venv/
-venv/
+var/
+public/
 __pycache__/
 *.py[cod]
-*.sqlite3
-*.log
-data/
-staticfiles/
-.pytest_cache/
-.DS_Store
-.idea/
-.vscode/
