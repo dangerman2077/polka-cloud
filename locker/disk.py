@@ -77,11 +77,11 @@ def budget(user):
 
 class Pending:
     """Write outside the visible tree and publish a complete file with rename."""
-    def __init__(self, user, target):
+    def __init__(self, user, target, *, remaining=None):
         if not target.parent.is_dir() or target.is_dir():
             raise DiskError('Проверьте имя и папку назначения.')
         self.target = target
-        self.remaining = max(0, budget(user) + volume(target))
+        self.remaining = max(0, budget(user) + volume(target)) if remaining is None else remaining
         stage = settings.DATA/'incoming'
         stage.mkdir(exist_ok=True)
         self.stream = tempfile.NamedTemporaryFile(dir=stage, delete=False)

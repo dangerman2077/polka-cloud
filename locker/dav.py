@@ -1,6 +1,8 @@
 """One authenticated DAV share per personal directory; no public filesystem provider."""
 import base64
 import binascii
+import hmac
+import secrets
 import os
 from contextlib import nullcontext
 from threading import Lock
@@ -9,6 +11,8 @@ from urllib.parse import quote, unquote, urlparse
 
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.core.cache.backends.locmem import LocMemCache
+from .models import Student
 from django.core.handlers.wsgi import WSGIRequest
 from django.core.exceptions import DisallowedHost
 from django.db import close_old_connections
@@ -22,12 +26,18 @@ from .disk import DiskError, Full, Pending, budget, exclusive, locate, volume
 MUTATIONS = {'PUT', 'COPY', 'MOVE', 'DELETE', 'MKCOL', 'LOCK', 'UNLOCK', 'PROPPATCH'}
 
 
+# Cache only proofs of successful Basic authentication, in this worker's memory.
+_auth_key = secrets.token_bytes(32)
+_verified = LocMemCache('polka-dav-auth', {'OPTIONS': {'MAX_ENTRIES': 512}})
+
+
 class UploadFile(FileResource):
     pending = None
     newly_created = False
 
     def begin_write(self, *, content_type=None):
-        self.pending = Pending(self.environ['polka.student'], Path(self._file_path))
+        self.pending = Pending(self.environ['polka.student'], Path(self._file_path),
+                               remaining=self.environ.get('polka.write_limit'))
         return self
 
     def write(self, chunk):
@@ -64,10 +74,12 @@ class Folder(FolderResource):
         return resource
 
     def get_used_bytes(self):
-        return volume(self.environ['polka.student'].folder)
+        if 'polka.used_bytes' not in self.environ:
+            self.environ['polka.used_bytes'] = volume(self.environ['polka.student'].folder)
+        return self.environ['polka.used_bytes']
 
     def get_available_bytes(self):
-        return max(0, budget(self.environ['polka.student']))
+        return max(0, self.environ['polka.student'].quota_mib * 1024**2 - self.get_used_bytes())
 
 
 class PrivateTree(FilesystemProvider):
@@ -134,7 +146,20 @@ def identify(environ):
         name, password = credentials.split(':', 1)
     except (ValueError, binascii.Error, UnicodeError):
         return None
-    return authenticate(username=name, password=password)
+    if list(settings.AUTHENTICATION_BACKENDS) != ['django.contrib.auth.backends.ModelBackend']:
+        return authenticate(username=name, password=password)
+    key = hmac.digest(_auth_key, payload.encode('ascii'), 'sha256').hex()
+    proof = _verified.get(key)
+    if proof:
+        # A rename, deactivation, password reset or replacement account invalidates the proof.
+        user = Student.objects.filter(username=name, vault=proof[0], is_active=True).first()
+        if user is not None and hmac.compare_digest(user.password, proof[1]):
+            return user
+        _verified.delete(key)
+    user = authenticate(username=name, password=password)
+    if user is not None:
+        _verified.set(key, (user.vault, user.password), timeout=60)
+    return user
 
 
 def verify_target(user, environ):
@@ -148,7 +173,9 @@ def verify_target(user, environ):
         size = int(environ['CONTENT_LENGTH'])
         if size < 0:
             raise DAVError(400)
-        if size > max(0, budget(user) + volume(source)):
+        # Held under the same per-account write lock until PUT has completed.
+        environ['polka.write_limit'] = max(0, budget(user) + volume(source))
+        if size > environ['polka.write_limit']:
             raise DAVError(507)
     if method in {'MOVE', 'COPY'}:
         dest = urlparse(unquote(environ.get('HTTP_DESTINATION','')), allow_fragments=False)
