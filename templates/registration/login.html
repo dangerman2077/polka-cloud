@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Вход · Polka{% endblock %}
+{% block content %}
+<div class="login-layout">
+  <div class="login-decoration"><span class="glow-icon">P</span><h1>Мои файлы.<br>Всегда под рукой.</h1><p>Доступ к своему хранилищу из браузера и Проводника Windows.</p></div>
+  <div class="login-card">
+    <div class="section-kicker">С возвращением</div>
+    <h2>Войти в Polka</h2>
+    <p class="subtext">Используйте учётные данные, выданные администратором.</p>
+    {% if form.errors %}<div class="flash error">Неверный логин или пароль.</div>{% endif %}
+    <form method="post" class="stack-form">
+      {% csrf_token %}
+      <label>Логин<input type="text" name="username" autofocus autocomplete="username" required></label>
+      <label>Пароль<input type="password" name="password" autocomplete="current-password" required></label>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button class="btn btn-primary btn-wide" type="submit">Войти <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="login-footnote">Регистрация выполняется администратором.</p>
+  </div>
+</div>
+{% endblock %}

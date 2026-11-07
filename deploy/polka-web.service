@@ -1,0 +1,21 @@
+[Unit]
+Description=Polka Django website
+After=network.target
+
+[Service]
+Type=simple
+User=polka
+Group=polka
+WorkingDirectory=/opt/polka
+EnvironmentFile=/etc/polka.env
+UMask=0077
+ExecStart=/opt/polka/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:18081 --timeout 300 polka.wsgi:application
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/polka
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
