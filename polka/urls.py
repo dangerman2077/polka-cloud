@@ -5,6 +5,7 @@ from locker import pages
 
 urlpatterns = [
     path('', pages.files), path('change/', pages.change), path('download/', pages.download),
+    path('view/', pages.download, {'preview': True}),
     path('stats/', pages.stats), path('login/', LoginView.as_view()), path('logout/', LogoutView.as_view()),
     path('admin/', admin.site.urls),
 ]

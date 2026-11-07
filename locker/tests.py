@@ -114,3 +114,18 @@ class DriveTests(TestCase):
         member.refresh_from_db()
         self.assertEqual(member.quota_mib,0)
         self.assertEqual(self.request('PUT','/dav/empty.txt',b'1',who='new')[0],507)
+
+    def test_preview_and_download(self):
+        import base64
+        data = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=')
+        self.request('PUT', '/dav/рисунок.PNG', data)
+        for url, disposition in [('/view/', 'inline'), ('/download/', 'attachment')]:
+            reply = self.client.get(url, {'p': 'рисунок.PNG'})
+            self.assertEqual(reply.status_code, 200)
+            self.assertEqual(reply['Content-Type'], 'image/png')
+            self.assertTrue(reply['Content-Disposition'].startswith(disposition + ';'))
+            self.assertEqual(b''.join(reply.streaming_content), data)
+        self.request('PUT', '/dav/page.html', b'<script>alert(1)</script>')
+        self.assertContains(self.client.get('/view/', {'p':'page.html'}), 'просмотр в браузере недоступен')
+        self.client.force_login(Student.objects.get(username='bob'))
+        self.assertEqual(self.client.get('/view/', {'p':'рисунок.PNG'}).status_code, 404)

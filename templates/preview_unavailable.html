@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+<p><a href="/?p={{ parent|urlencode }}">← К файлам</a></p>
+<h1>{{ name }}</h1>
+<p>Для этого формата просмотр в браузере недоступен.</p>
+<a class="download-button" href="/download/?p={{ relative|urlencode }}" download>Скачать</a>
+{% endblock %}

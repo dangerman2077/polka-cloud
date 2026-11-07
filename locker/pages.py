@@ -1,3 +1,4 @@
+from mimetypes import guess_type
 from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -80,12 +81,32 @@ def change(request):
     return redirect('/?' + urlencode({'p': relative}))
 
 
+PREVIEW_TYPES = {
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp',
+    'application/pdf', 'text/plain', 'video/mp4', 'video/webm', 'audio/mpeg',
+    'audio/ogg', 'audio/wav', 'audio/x-wav',
+}
+
+
 @login_required
 @require_GET
-def download(request):
+def download(request, *, preview=False):
     try:
         path = locate(request.user, request.GET.get('p',''))
-        return FileResponse(path.open('rb'), as_attachment=True, filename=path.name)
+        if not path.is_file():
+            raise Http404
+        mime, encoding = guess_type(path.name)
+        if preview and (encoding or mime not in PREVIEW_TYPES):
+            return render(request, 'preview_unavailable.html', {
+                'name': path.name, 'relative': request.GET['p'],
+                'parent': path.relative_to(request.user.folder).as_posix().rpartition('/')[0],
+            })
+        response = FileResponse(path.open('rb'), as_attachment=not preview,
+                                filename=path.name, content_type=mime if preview else None)
+        if preview:
+            response['Content-Security-Policy'] = "script-src 'none'; base-uri 'none'; form-action 'none'"
+        response['Cache-Control'] = 'private, no-store'
+        return response
     except (DiskError, OSError) as exc:
         raise Http404 from exc
 
